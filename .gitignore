@@ -1,0 +1,6 @@
+/env
+/midi
+/__pycache__
+/data
+/output
+/tests
