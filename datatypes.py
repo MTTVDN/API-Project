@@ -9,11 +9,18 @@ DIMINISHED = [1,3,4,6,7,9,10,12]
 WHOLE = [1,3,5,7,9,11]
 
 MINOR_THIRD_SYMBOLS = '-om'
+MAJOR_THIRD_SYMBOLS = '+j'
 
 chroma = '([A-G])'
 accidental = '(b|#)?'
 polarity = '(-|\+|o|j|sus|m)?'
-tensions = '(j7|7)?(b5)?(9b|9#|9)?(11#|11)?(13b|13)?'
+seventh = '(j7|7)?'
+fifth = '(b5)?'
+sixth = '(6)?'
+ninth = '(9b|9#|9)?'
+eleventh = '(11#|11)?'
+thirteenth = '(13b|13)?'
+tensions = seventh+fifth+sixth+ninth+eleventh+thirteenth
 CHORD_REGEX = re.compile(chroma+accidental+polarity+tensions)
 
 class Intervals(Enum):
@@ -71,7 +78,11 @@ class Numerals(Enum):
 
 @dataclass
 class Chord:
+    name: str
     notes: list[Notes]
 
 def AddInterval(note: Notes, interval: Intervals):
-    return Notes(max((note.value + interval.value) % 13, 1))
+    newNote = note.value + interval.value
+    if newNote > 12:
+        newNote -= 12
+    return Notes(newNote)
