@@ -1,96 +1,41 @@
-import sqlite3
-import numpy
-from datatypes import Chord, Notes, Numerals, CHORD_REGEX, MINOR_THIRD_SYMBOLS, MAJOR_THIRD_SYMBOLS, Intervals, AddInterval
-from database import getMelody
+from datatypes import ParseChord, Song, SongChord, Voicings, RhythmicFigures, BassFigures
+from database import getSong
 from midiwriter import MidiWriter
+import argparse
 
-twofiveone = [7, 7]
+def main(songid: int, **kwargs):
+    song = Song([])
+    key_index = 1 # TODO: determine key from database
 
-chords = []
-key_index = 1 # TODO: determine key from database
 
-mw = MidiWriter(tempo=120)
+    songdf, song_info, song_bassline = getSong(songid)
+    songdf['duration'] = songdf['beatid'].diff().shift(-1).fillna(8).astype(int)
+    songdf.reset_index()
+    song_bassline.reset_index()
 
-for row in getMelody(2):
-    fundamental = None
-    third = None
-    fifth = None
-    seventh = None
+    mw = MidiWriter(tempo=song_info.avgtempo)
 
-    chordString = row[0]
+    for index, row in songdf.iterrows():
+        chordString = row.chord
+        newChord = ParseChord(chordString)
+        newSongChord = SongChord(chord=newChord, beat=row.beatid, duration=row.duration)
+        song.structure.append(newSongChord)
 
-    # TODO handle NC
-
-    re_results = CHORD_REGEX.search(chordString)
-    if re_results:
-        # print(g.group(1), g.group(2), g.group(3), g.group(4), g.group(5), g.group(6), g.group(7), g.group(8))
-        chroma = re_results.group(1)
-        accidental = re_results.group(2)
-        polarity = re_results.group(3)
-        seventhSymbol = re_results.group(4)
-        fifthSymbol = re_results.group(5)
-        sixthSymbol = re_results.group(6)
-        ninthSymbol = re_results.group(7)
-        eleventhSymbol = re_results.group(8)
-        thirteenthSymbol = re_results.group(9)
-
-        fundamental = Notes[chroma+accidental if accidental else chroma]
-        if (polarity):
-            if (polarity in MINOR_THIRD_SYMBOLS):
-                third = AddInterval(fundamental, Intervals.MinorThird)
-            if (polarity in MAJOR_THIRD_SYMBOLS):
-                third = AddInterval(fundamental, Intervals.MajorThird)
-            if (polarity == 'sus'):
-                third = AddInterval(fundamental, Intervals.PerfectFourth)
+    for index, songChord in enumerate(song.structure):
+        mw.AddChord(songChord.chord, songChord.beat, songChord.duration, Voicings.Inversion2, RhythmicFigures.Swing1)
+        if (index + 1 < len(song.structure)):
+            mw.AddWalkingBass(songChord.chord, song.structure[index + 1].chord, songChord.beat, songChord.duration)
         else:
-            third = AddInterval(fundamental, Intervals.MajorThird)
+            mw.AddWalkingBass(songChord.chord, songChord.chord, songChord.beat, songChord.duration)
 
-        if (seventhSymbol):
-            if (not polarity):
-                seventh = AddInterval(third, Intervals.Tritone)
-            elif(polarity == 'sus'):
-                seventh = AddInterval(fundamental, Intervals.MinorSeventh)
-            elif(seventhSymbol == 'j7'):
-                seventh = AddInterval(third, Intervals.MinorSixth)
-            else:
-                seventh = AddInterval(third, Intervals.PerfectFifth)
-        
-        if (sixthSymbol):
-            seventh = AddInterval(fundamental, Intervals.MajorSixth)
+    # for index, row in song_bassline.iterrows():
+    #     mw.AddBassNote(row.bass_pitch, row.beatid, 1)
 
-        if (fifthSymbol):
-            fifth = AddInterval(fundamental, Intervals.Tritone)
-        else:
-            if (polarity == '+'):
-                fifth = AddInterval(fundamental, Intervals.MinorSixth)
-            else: 
-                fifth = AddInterval(fundamental, Intervals.PerfectFifth)
-                
-        newChord = Chord(chordString, [fundamental, third, fifth, seventh])
-        chords.append(newChord)
+    mw.ExportMidi(song_info.title.values[0])
 
 
-chroma_numbers = []
-
-time = 0
-for chord in chords:
-    mw.AddChord(chord, time, 4)
-    time += 4
-
-mw.ExportMidi()
-
-# intervals = [0]
-# for i in range(len(chroma_numbers) - 1):
-#     intervals.append((12 - chroma_numbers[i+1] + chroma_numbers[i]) % 12)
-
-# twofiveone_occurences = []
-
-# for i in range(len(intervals)):
-#     if intervals[i:i+len(twofiveone)] == twofiveone:
-#         twofiveone_occurences.append((i-1, i+len(twofiveone)-1))
-
-# print(twofiveone_occurences)
-
-# chord_numerals = [Numerals(i).name for i in chroma_numbers]
-# for idx, chord in enumerate(chords):
-#     print(chord, chord_numerals[idx])
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--songid', type=int, required=True)
+    args = parser.parse_args()
+    main(args.songid)
