@@ -1,17 +1,18 @@
-from datatypes import ParseChord, Song, SongChord, Voicings, RhythmicFigures, BassFigures
-from database import getSong
+from utils import SongChord, Voicings, RhythmicFigures, BassFigures
+from IO import read_songcsv
 from midiwriter import MidiWriter
 import argparse
+from classes import Song
 
-def main(songid: int, **kwargs):
-    song = Song([])
-    key_index = 1 # TODO: determine key from database
-
-
-    songdf, song_info, song_bassline = getSong(songid)
-    songdf['duration'] = songdf['beatid'].diff().shift(-1).fillna(8).astype(int)
+def main(song_path: str, **kwargs):
+    # TODO: determine key
+    print(song_path)
+    songdf = read_songcsv(song_path)
+    print(songdf)
     songdf.reset_index()
-    song_bassline.reset_index()
+    song = Song(songdf)
+
+    exit()
 
     mw = MidiWriter(tempo=song_info.avgtempo)
 
@@ -19,23 +20,21 @@ def main(songid: int, **kwargs):
         chordString = row.chord
         newChord = ParseChord(chordString)
         newSongChord = SongChord(chord=newChord, beat=row.beatid, duration=row.duration)
-        song.structure.append(newSongChord)
+        song.AddChord(newSongChord)
+        song.AddBass(newSongChord, BassFigures.Standard4, chromatic=chromatic_bassline)
 
-    for index, songChord in enumerate(song.structure):
-        mw.AddChord(songChord.chord, songChord.beat, songChord.duration, Voicings.Inversion2, RhythmicFigures.Swing1)
-        if (index + 1 < len(song.structure)):
-            mw.AddWalkingBass(songChord.chord, song.structure[index + 1].chord, songChord.beat, songChord.duration)
-        else:
-            mw.AddWalkingBass(songChord.chord, songChord.chord, songChord.beat, songChord.duration)
-
-    # for index, row in song_bassline.iterrows():
-    #     mw.AddBassNote(row.bass_pitch, row.beatid, 1)
+    mw.WriteChords(song, Voicings.Standard, RhythmicFigures.Swing8)
+    mw.WriteBass(song)
 
     mw.ExportMidi(song_info.title.values[0])
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--songid', type=int, required=True)
+    parser.add_argument('--song_path', type=str, required=True)
+    parser.add_argument('--chromatic_bassline', type=bool, default=False)
+    parser.add_argument('--repeats', type=int)
+    # parser.add_argument('--bassfigure', choices=['standard2', 'standard4', 'random'], required=True)
     args = parser.parse_args()
-    main(args.songid)
+    conf = vars(args)
+    main(**conf)

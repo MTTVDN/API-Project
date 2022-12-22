@@ -1,5 +1,5 @@
 from midiutil import MIDIFile
-from datatypes import Chord, Voicings, RhythmicFigures, BassFigures
+from utils import Chord, Voicings, RhythmicFigures, BassFigures, Song
 
 class MidiWriter():
     def __init__(self, tempo):
@@ -13,48 +13,33 @@ class MidiWriter():
         self.channel = 0
         self.volume = 100
 
-    def AddChord(self, chord: Chord, time: int, duration: int, voicing: Voicings, rhythm: RhythmicFigures):
-        for accent in rhythm.value:
-            if accent < duration:
-                for voice, modulation in voicing.value.items():
-                    if (modulation != None and chord.notes[voice]):
-                        self.MidiFile.addNote(
-                            track=self.chordTrack,
-                            channel=self.channel,
-                            pitch=57 + chord.notes[voice].value - 1 + 12 * modulation,
-                            time=time + accent,
-                            duration=1,
-                            volume=self.volume
-                        )
-        return
+    def WriteChords(self, song: Song, voicing: Voicings, rhythm: RhythmicFigures):
+        for beat, songChord in enumerate(song.structure):
+            if (songChord):
+                onset = rhythm.value[beat % len(rhythm.value)]
+                if (onset != None):
+                    for voice, modulation in voicing.value.items():
+                        if (modulation != None and songChord.chord.notes[voice]):
+                            self.MidiFile.addNote(
+                                track=self.chordTrack,
+                                channel=self.channel,
+                                pitch=57 + songChord.chord.notes[voice].value - 1 + 12 * modulation,
+                                time=beat + onset,
+                                duration=1,
+                                volume=self.volume
+                            )
 
-    def AddWalkingBass(self, chord: Chord, nextChord: Chord, time: int, duration: int):
-        bassFigure = BassFigures.Standard4
-        if (duration == 2):
-            bassFigure = bassFigure.Standard2
-        elif (duration == 4):
-            bassFigure = bassFigure.Standard4
-        elif (duration == 8):
-            bassFigure = bassFigure.Standard8
-
-        if (chord.name != 'NC'):
-            for beat, bassnote in enumerate(bassFigure.value):
+    def WriteBass(self, song: Song):
+        for beat, bassnote in enumerate(song.bass):
+            if bassnote:
                 self.MidiFile.addNote(
                     track=self.bassTrack,
                     channel=self.channel,
-                    pitch=45 + chord.notes[bassnote].value - 1,
-                    time=time + beat,
+                    pitch=bassnote,
+                    time=beat,
                     duration=1,
                     volume=self.volume
                 )
-            self.MidiFile.addNote(
-                track=self.bassTrack,
-                channel=self.channel,
-                pitch=45 + nextChord.notes['root'].value - 2,
-                time=time + duration - 1,
-                duration=1,
-                volume=self.volume
-            )
 
     def AddBassNote(self, bassNote: int, time: int, duration: int):
         self.MidiFile.addNote(
