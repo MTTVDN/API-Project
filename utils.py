@@ -12,20 +12,20 @@ class Voicings(Enum):
     Inversion2 = {'root': 1, 'third': 1, 'fifth': 0, 'seventh': 0}
     Inversion3 = {'root': 1, 'third': 1, 'fifth': 1, 'seventh': 0}
 
-class RhythmicFigures(Enum):
-    Swing4 = [0.65, None, 0., None]
-    Swing8 = [0.65, None, 0., None, 0., 0.65, None, None]
+class Accents(Enum):
+    Swing4_1 = [1,4]
+    Swing4_2 = [0,3]
 
 class BassFigures(Enum):
     Standard2 = ['root', 'fifth']
     Standard4 = ['root', 'third', 'fifth', 'third']
 
 class Scales(Enum):
-    GREGORIAN = [1,3,5,6,8,10,12]
-    HARMONIC = [1,3,4,6,8,9,12]
-    MELODIC = [1,3,4,6,8,10,12]
-    DIMINISHED = [1,3,4,6,7,9,10,12]
-    WHOLE = [1,3,5,7,9,11]
+    GREGORIAN = [0,2,4,5,7,9,11]
+    HARMONIC = [0,2,3,5,7,8,11]
+    MELODIC = [0,2,3,5,7,9,11]
+    DIMINISHED = [0,2,3,5,6,8,9,11]
+    WHOLE = [0,2,4,6,8,10]
 
 twofiveoneintervals = [7, 7]
 
@@ -46,6 +46,13 @@ thirteenth = '(13b|13)?'
 tensions = seventh+fifth+sixth+ninth+eleventh+thirteenth
 CHORD_REGEX = re.compile(chroma+accidental+polarity+tensions)
 
+class Chord_Types(Enum):
+    Major = 0
+    Minor = 1
+    Diminished = 2
+    Half_Diminished = 3
+    Dominant = 4
+
 class Durations(Enum):
     Whole = 4.
     Half = 2.
@@ -54,6 +61,7 @@ class Durations(Enum):
     Sixteenth = 0.25
 
 class Intervals(Enum):
+    Unison = 0
     MinorSecond = 1
     MajorSecond = 2
     MinorThird = 3
@@ -79,64 +87,32 @@ class Notations(Enum):
     DIM = 'o'
 
 class Notes(Enum):
-    A = 1
-    Bb = 2
-    B = 3
-    C = 4
-    Db = 5
-    D = 6
-    Eb = 7
-    E = 8
-    F = 9
-    Gb = 10
-    G = 11
-    Ab = 12
+    A = 0
+    Bb = 1
+    B = 2
+    C = 3
+    Db = 4
+    D = 5
+    Eb = 6
+    E = 7
+    F = 8
+    Gb = 9
+    G = 10
+    Ab = 11
     
 class Numerals(Enum):
-    I = 1
-    IIb = 2
-    II = 3
-    IIIb = 4
-    III = 5
-    IV = 6
-    Vb = 7
-    V = 8
-    VIv = 9
-    VI = 10
-    VIIb = 11
-    VII = 12
-
-# TODO: save chord notes as dict of functions (root, third, seventh etc.)
-@dataclass
-class Chord:
-    name: str
-    notes: dict[str, Notes]
-
-@dataclass
-class SongChord:
-    chord: Chord
-    beat: int
-    duration: int
-
-class Song:
-    def __init__(self, beats):
-        self.beats = beats
-        self.structure: list[SongChord] = [None]*(beats+8)
-        self.bass: list[int] = [None]*(beats+8)
-    
-    def AddChord(self, songChord: SongChord):
-        self.structure[songChord.beat:songChord.beat+songChord.duration] = [songChord]*songChord.duration
-    
-    def AddBass(self, songChord: SongChord, figure: BassFigures, chromatic: bool = False):
-        if songChord.chord.name != 'NC':
-            if (chromatic):
-                if (songChord.beat > 0):
-                    self.bass[songChord.beat - 1] = 33 + songChord.chord.notes['root'].value - 2
-
-            for beat in range(songChord.duration):
-                function = figure.value[beat % len(figure.value)]
-                self.bass[songChord.beat + beat] = 33 + songChord.chord.notes[function].value - 1
-
+    I = 0
+    IIb = 1
+    II = 2
+    IIIb = 3
+    III = 4
+    IV = 5
+    Vb = 6
+    V = 7
+    VIb = 8
+    VI = 9
+    VIIb = 10
+    VII = 11
 
 def add_interval(note: Notes, interval: Intervals)-> Notes:
-    return Notes((note.value + interval.value - 1) % 12 + 1)
+    return Notes((note.value + interval.value) % 11)

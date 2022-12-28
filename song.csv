@@ -1,6 +1,6 @@
-chord,bar,beats,division,feel,tempo
-Gm7,0,4,4,swing,120
+chord,bar,beats,division,feel,tempo,key
+Gm7,0,4,4,swing,120,F
 C7,1
-Fmaj7,2
-Fmaj7,3
-F#dim
+Fj7,2
+Fj7,3
+F#o7

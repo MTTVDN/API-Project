@@ -1,6 +1,4 @@
-from utils import SongChord, Voicings, RhythmicFigures, BassFigures
 from IO import read_songcsv
-from midiwriter import MidiWriter
 import argparse
 from classes import Song
 
@@ -11,22 +9,19 @@ def main(song_path: str, **kwargs):
     print(songdf)
     songdf.reset_index()
     song = Song(songdf)
+    song.export_to_midi(song_path, instruments=['chords'], repeats=3)
 
-    exit()
+    # mw = MidiWriter(tempo=song_info.avgtempo)
 
-    mw = MidiWriter(tempo=song_info.avgtempo)
+    # for index, row in songdf.iterrows():
+    #     chordString = row.chord
+    #     newChord = ParseChord(chordString)
+    #     newSongChord = SongChord(chord=newChord, beat=row.beatid, duration=row.duration)
+    #     song.AddChord(newSongChord)
+    #     song.AddBass(newSongChord, BassFigures.Standard4, chromatic=chromatic_bassline)
 
-    for index, row in songdf.iterrows():
-        chordString = row.chord
-        newChord = ParseChord(chordString)
-        newSongChord = SongChord(chord=newChord, beat=row.beatid, duration=row.duration)
-        song.AddChord(newSongChord)
-        song.AddBass(newSongChord, BassFigures.Standard4, chromatic=chromatic_bassline)
-
-    mw.WriteChords(song, Voicings.Standard, RhythmicFigures.Swing8)
-    mw.WriteBass(song)
-
-    mw.ExportMidi(song_info.title.values[0])
+    # mw.WriteChords(song, Voicings.Standard, Accents.Swing8)
+    # mw.WriteBass(song)
 
 
 if __name__ == "__main__":
