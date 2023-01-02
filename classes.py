@@ -18,7 +18,6 @@ class Chord:
 
     # given a chord symbol/string, determine the notes that are part of this chord
     def parse_chord(self, chord_string: str):
-        print('digesting ', chord_string)
         chord_notes = {'root': None, 'third': None, 'fifth': None, 'seventh': None}
         chord_class = None
 
@@ -201,12 +200,10 @@ class Song:
     # initialize all measures and chords based on song dataframe
     def __init__(self, songdf: pd.DataFrame):
         self.bars = [None] * (songdf.bar.max() + 1)
-        print(songdf)
         self.tempo = songdf['tempo'].iloc[0]
         self.beat_chords: List[Chord] = []
         song_bars = songdf.groupby('bar')
         for name, bar_group in song_bars:
-            print(bar_group)
             bar_beats = bar_group.beats.iloc[0]
             bar_tempo = bar_group.tempo.iloc[0]
             bar_swing = bar_group.feel.iloc[0] == 'swing'
@@ -214,9 +211,7 @@ class Song:
 
             chords = []
             for index, bar_row in bar_group.iterrows():
-                print('chord', bar_row.chord)
                 chord_string = bar_row.chord
-                print('this chord: ', chord_string)
                 chords.append(Chord(chord_string))
 
             new_bar.set_chords(chords, beats=range(bar_beats))
@@ -249,7 +244,6 @@ class Song:
         bass_notes[0] = chords[0].midi_root
         bass_notes[-1] = chords[-1].midi_root
         for idx, bass_note in reversed(list(enumerate(bass_notes[0:-1]))):
-            print(bass_notes)
             if chords[idx].name != chords[idx - 1].name:
                 bass_notes[idx] = chords[idx].midi_root # start bass of new chord on the root for more harmonic support
             else:
@@ -269,10 +263,8 @@ class Song:
                             bass_notes[idx] = random.choice(leads)
                             continue
                     if bass_notes[idx] == None:
-                        print('no lead found')
                         bass_notes[idx] = chord_tones[0]
 
-        print(bass_notes)
         return [note + 12 * octave for note in bass_notes]
         
 
@@ -291,7 +283,6 @@ class Song:
         for bar in repeated_bars:
             for accent in bar.accents:
                 chord = bar.beat_chords[math.floor(accent)]
-                chord.print_info()
                 midi_chord = chord.voiced_midi_notes()
                 if voice_leading and prev_chord:
                     midi_chord = self.lead_voices(prev_chord, midi_chord)

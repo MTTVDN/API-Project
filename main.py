@@ -3,9 +3,9 @@ import argparse
 from classes import Song
 
 def main(song_path: str, repeats: int, **kwargs):
-    print(song_path)
+    print('analyzing: ', song_path)
     songdf = read_songcsv(song_path)
-    print(songdf)
+    print('song dataframe:', songdf)
     songdf.reset_index()
     song = Song(songdf)
     song.export_to_midi(song_path, instruments=['chords', 'bass'], repeats=repeats)
