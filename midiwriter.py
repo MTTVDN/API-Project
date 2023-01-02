@@ -44,5 +44,5 @@ class MidiWriter():
             )
 
     def export_midi(self, title: str):
-        with open(f"output/{title}.mid", "wb") as output_file:
+        with open(f"{title}.mid", "wb") as output_file:
             self.MidiFile.writeFile(output_file)
