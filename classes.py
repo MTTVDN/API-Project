@@ -149,6 +149,7 @@ class Chord:
             for function, interval in self.notes.items():
                 if interval != None and function != 'seventh':
                     notes.append(self.midi_root + interval.value)
+            return notes
         else: 
             return self.midi_notes()
 
@@ -158,14 +159,14 @@ class Chord:
         print('root: ', self.root)
         print('notes: ', self.notes)
         print('type: ', self.chord_class)
-        print('midi: ', self.voiced_midi_notes())
+        print('midi: ', self.midi_notes())
 
     # placeholder for sonic preview of a chord
     def preview_chord(self):
         raise NotImplementedError
 
-# holds the concept of a measure
-class Measure:
+# holds the concept of a bar
+class Bar:
     def __init__(self, beats: int, tempo: int, swing: bool = False, swing_percentage: float = 0.60):
         self.beat_chords = [None] * beats
         self.swing_percentage = swing_percentage
@@ -186,7 +187,7 @@ class Measure:
         if (beat < len(self.beat_chords)):
             self.accents.append(beat)
 
-    # set the chords present in the measure
+    # set the chords present in the bar
     def set_chord(self, chord: Chord, beat: int):
         self.beat_chords[beat] = chord
 
@@ -195,10 +196,10 @@ class Measure:
         for idx, beat in enumerate(beats):
             self.set_chord(chords[idx // ratio], beat)
 
-# holds the abstract representation of the complete song (containing measures and chords)
+# holds the abstract representation of the complete song (containing bars and chords)
 class Song:
-    # initialize all measures and chords based on song dataframe
-    def __init__(self, songdf: pd.DataFrame):
+    # initialize all bars and chords based on song dataframe
+    def __init__(self, songdf: pd.DataFrame, voicing: Voicings):
         self.bars = [None] * (songdf.bar.max() + 1)
         self.tempo = songdf['tempo'].iloc[0]
         self.beat_chords: List[Chord] = []
@@ -207,12 +208,12 @@ class Song:
             bar_beats = bar_group.beats.iloc[0]
             bar_tempo = bar_group.tempo.iloc[0]
             bar_swing = bar_group.feel.iloc[0] == 'swing'
-            new_bar = Measure(beats=bar_beats, tempo=bar_tempo, swing=bar_swing)
+            new_bar = Bar(beats=bar_beats, tempo=bar_tempo, swing=bar_swing)
 
             chords = []
             for index, bar_row in bar_group.iterrows():
                 chord_string = bar_row.chord
-                chords.append(Chord(chord_string))
+                chords.append(Chord(chord_string, voicing=voicing))
 
             new_bar.set_chords(chords, beats=range(bar_beats))
             self.beat_chords.extend(new_bar.beat_chords)
@@ -242,16 +243,13 @@ class Song:
     def walking_bass_line(self, chords: List[Chord], octave = -2):
         bass_notes = [None] * (len(chords) + 1)
         bass_notes[0] = chords[0].midi_root
-        bass_notes[-1] = chords[-1].midi_root
+        bass_notes[-1] = chords[0].midi_root
         for idx, bass_note in reversed(list(enumerate(bass_notes[0:-1]))):
             if chords[idx].name != chords[idx - 1].name:
                 bass_notes[idx] = chords[idx].midi_root # start bass of new chord on the root for more harmonic support
             else:
                 chord_tones = chords[idx].safe_midi_notes()
-                # if bass_notes[idx + 1] in chord_tones: chord_tones.remove(bass_notes[idx + 1])
                 leading_tones = midi_leading_tones(bass_notes[idx + 1])
-                # if bass_notes[idx + 1] in leading_tones: leading_tones.remove(bass_notes[idx + 1])
-
                 random.shuffle(chord_tones)
                 random.shuffle(leading_tones)
                 if not idx % 2:
@@ -263,9 +261,9 @@ class Song:
                             bass_notes[idx] = random.choice(leads)
                             continue
                     if bass_notes[idx] == None:
-                        bass_notes[idx] = chord_tones[0]
+                        bass_notes[idx] = bass_notes[idx + 1] - 1
 
-        return [note + 12 * octave for note in bass_notes]
+        return [note + 12 * octave for note in bass_notes[:-1]]
         
 
     # export the song to a collection of midi tracks using the chords and walking bassline functions
@@ -277,7 +275,6 @@ class Song:
         repeated_beat_chords = self.beat_chords * repeats
 
         bass_line = [(note, position) for position, note in enumerate(self.walking_bass_line(repeated_beat_chords))]
-        print(bass_line)
         mw.write_bass(bass_line, 0, Durations.Eight.value)
 
         for bar in repeated_bars:

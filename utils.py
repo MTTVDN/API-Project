@@ -40,6 +40,7 @@ ninth = '(9b|9#|9)?'
 eleventh = '(11#|11)?'
 thirteenth = '(13b|13)?'
 tensions = seventh+fifth+sixth+ninth+eleventh+thirteenth
+full_chord_regex = chroma+accidental+polarity+tensions
 CHORD_REGEX = re.compile(chroma+accidental+polarity+tensions)
 
 class Chord_Types(Enum):
