@@ -5,9 +5,9 @@ import pandas as pd
 import random
 import math
 
+# holds functionality concerning chords
 class Chord:
     def __init__(self, chord_string: str, voicing: Voicings = Voicings.Rootless, octave: int = 3):
-        print('init:', chord_string)
         self.name = chord_string
         self.root, self.notes, self.chord_class = self.parse_chord(chord_string)
         self.voicing = voicing
@@ -16,6 +16,7 @@ class Chord:
         self.function = None
         return
 
+    # given a chord symbol/string, determine the notes that are part of this chord
     def parse_chord(self, chord_string: str):
         print('digesting ', chord_string)
         chord_notes = {'root': None, 'third': None, 'fifth': None, 'seventh': None}
@@ -122,9 +123,11 @@ class Chord:
 
             return root, chord_notes, chord_class
 
+    # set how the chord should be voiced by an instrument
     def set_voicing(self, voicing: Voicings):
         self.voicing = voicing
 
+    # return the midi notes of the chord voicing
     def voiced_midi_notes(self) -> List[int]:
         notes = []
         for function, interval in self.notes.items():
@@ -132,6 +135,7 @@ class Chord:
                 notes.append(self.midi_root + interval.value + self.voicing.value.get(function, 0) * 12)
         return notes
 
+    # return midi notes of all notes that are part of the chord
     def midi_notes(self) -> List[int]:
         notes = []
         for interval in self.notes.values():
@@ -139,6 +143,7 @@ class Chord:
                 notes.append(self.midi_root + interval.value)
         return notes
 
+    # return midi notes of all notes except notes that potentially clash (avoid tones)
     def safe_midi_notes(self) -> List[int]:
         notes = []
         if self.chord_class == Chord_Types.Major:
@@ -148,10 +153,7 @@ class Chord:
         else: 
             return self.midi_notes()
 
-    def get_notes(self) -> List[Notes]:
-        return [self.midi_root + note.value for note in self.notes.values()]
-
-
+    # print chord info
     def print_info(self):
         print('name: ', self.name)
         print('root: ', self.root)
@@ -159,16 +161,19 @@ class Chord:
         print('type: ', self.chord_class)
         print('midi: ', self.voiced_midi_notes())
 
+    # placeholder for sonic preview of a chord
     def preview_chord(self):
         raise NotImplementedError
 
-class Bar:
+# holds the concept of a measure
+class Measure:
     def __init__(self, beats: int, tempo: int, swing: bool = False, swing_percentage: float = 0.60):
         self.beat_chords = [None] * beats
         self.swing_percentage = swing_percentage
         self.beats = beats
         self.accents = []
     
+    # set the moments in the bar that need to be accentuated
     def set_accent(self, eight: int, swing: bool = False):
         position = eight/2 + swing * self.swing_percentage/2 * int(eight % 2)
         self.accents.append(position)
@@ -182,6 +187,7 @@ class Bar:
         if (beat < len(self.beat_chords)):
             self.accents.append(beat)
 
+    # set the chords present in the measure
     def set_chord(self, chord: Chord, beat: int):
         self.beat_chords[beat] = chord
 
@@ -190,7 +196,9 @@ class Bar:
         for idx, beat in enumerate(beats):
             self.set_chord(chords[idx // ratio], beat)
 
+# holds the abstract representation of the complete song (containing measures and chords)
 class Song:
+    # initialize all measures and chords based on song dataframe
     def __init__(self, songdf: pd.DataFrame):
         self.bars = [None] * (songdf.bar.max() + 1)
         print(songdf)
@@ -202,7 +210,7 @@ class Song:
             bar_beats = bar_group.beats.iloc[0]
             bar_tempo = bar_group.tempo.iloc[0]
             bar_swing = bar_group.feel.iloc[0] == 'swing'
-            new_bar = Bar(beats=bar_beats, tempo=bar_tempo, swing=bar_swing)
+            new_bar = Measure(beats=bar_beats, tempo=bar_tempo, swing=bar_swing)
 
             chords = []
             for index, bar_row in bar_group.iterrows():
@@ -216,7 +224,8 @@ class Song:
             accent = random.choice(list(Accents)).value
             new_bar.set_accents(accent, swing=bar_swing)
             self.bars[name] = new_bar
-        
+    
+    # given a chord and a preceding chord, determine in what octave the notes should be played to create smoother transitions
     def lead_voices(self, prev_chord: List[int], chord: List[int]) -> List[int]:
         new_chord = []
         voice_leads = []
@@ -234,6 +243,7 @@ class Song:
                 new_chord.append(note)
         return new_chord
   
+    # given a list of chords, create a bassline that ties these chords together
     def walking_bass_line(self, chords: List[Chord], octave = -2):
         bass_notes = [None] * (len(chords) + 1)
         bass_notes[0] = chords[0].midi_root
@@ -264,11 +274,9 @@ class Song:
 
         print(bass_notes)
         return [note + 12 * octave for note in bass_notes]
-
-
         
 
-    # Add instruments?
+    # export the song to a collection of midi tracks using the chords and walking bassline functions
     def export_to_midi(self, target: str, instruments: List[str], repeats: int = 1, voice_leading: bool = True):
         mw = MidiWriter(tempo=self.tempo, instruments=instruments)
         current_beat = 0

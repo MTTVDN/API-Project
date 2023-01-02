@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 import re
 from typing import List
 
@@ -13,10 +13,12 @@ class Voicings(Enum):
     Inversion2 = {'root': 1, 'third': 1, 'fifth': 0, 'seventh': 0}
     Inversion3 = {'root': 1, 'third': 1, 'fifth': 1, 'seventh': 0}
 
+# accent patterns in 8th notes
 class Accents(Enum):
     Swing4_1 = [1,4]
     Swing4_2 = [0,3]
 
+# scales in terms of intervals wrt root (currently not in use)
 class Scales(Enum):
     GREGORIAN = [0,2,4,5,7,9,11]
     HARMONIC = [0,2,3,5,7,8,11]
@@ -27,8 +29,7 @@ class Scales(Enum):
 MINOR_THIRD_SYMBOLS = '-om'
 MAJOR_THIRD_SYMBOLS = '+j'
 
-# TODO add altered chords?
-
+# regex for chord parsing. Currently, alt and slash chords are not supported
 chroma = '([A-G])'
 accidental = '(b|#)?'
 polarity = '(-|\+|o|j|sus|m)?'
@@ -70,17 +71,6 @@ class Intervals(Enum):
     MajorSeventh = 11
     Octave = 12
 
-class Notations(Enum):
-    MAJOR = 'j'
-    MINOR = '-'
-    AUG = '+'
-    NINE = '9'
-    SNINE = '9#'
-    FNINE = '9b'
-    SELEVEN = '11#'
-    SIX = '6'
-    DIM = 'o'
-
 class Notes(Enum):
     A = 0
     Bb = 1
@@ -95,6 +85,7 @@ class Notes(Enum):
     G = 10
     Ab = 11
     
+# numerals for functional harmony (currently not in use)
 class Numerals(Enum):
     I = 0
     IIb = 1
@@ -109,11 +100,13 @@ class Numerals(Enum):
     VIIb = 10
     VII = 11
 
+# add an interval to a given note
 def add_interval(note: Notes, interval: Intervals)-> Notes:
     return Notes((note.value + interval.value) % 11)
 
 def sub_interval(note: Notes, interval: Intervals)-> Notes:
     return Notes((note.value - interval.value) % 11)
 
+# determine notes that are possible leading tones for given midi note
 def midi_leading_tones(midi_note: int) -> List[int]:
     return [midi_note + 1, midi_note + 2, midi_note - 1, midi_note - 2]

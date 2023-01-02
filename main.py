@@ -3,7 +3,6 @@ import argparse
 from classes import Song
 
 def main(song_path: str, repeats: int, **kwargs):
-    # TODO: determine key
     print(song_path)
     songdf = read_songcsv(song_path)
     print(songdf)
