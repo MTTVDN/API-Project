@@ -1,25 +1,28 @@
 from typing import List
-from utils import CHORD_REGEX, add_interval, Notes, MINOR_THIRD_SYMBOLS, MAJOR_THIRD_SYMBOLS, Intervals, Voicings, GLOBAL_TUNING, Accents, Durations, Chord_Types
+from utils import CHORD_REGEX, add_interval, sub_interval, midi_leading_tones, Notes, MINOR_THIRD_SYMBOLS, MAJOR_THIRD_SYMBOLS, Intervals, Voicings, GLOBAL_TUNING, Accents, Durations, Chord_Types, Bass_Targets
 from midiwriter import MidiWriter
 import pandas as pd
 import random
 import math
 
 class Chord:
-    def __init__(self, chord_string: str, voicing: Voicings = Voicings.Standard, octave: int = 3):
+    def __init__(self, chord_string: str, voicing: Voicings = Voicings.Classic10, octave: int = 3):
         self.name = chord_string
         self.root, self.notes, self.chord_class = self.parse_chord(chord_string)
         self.voicing = voicing
         self.reference_pitch = GLOBAL_TUNING + octave * 12
+        self.midi_root = self.reference_pitch + self.root.value
         self.function = None
         return
 
     def parse_chord(self, chord_string: str):
+        print('digesting ', chord_string)
         chord_notes = {'root': None, 'third': None, 'fifth': None, 'seventh': None}
         chord_class = None
 
         if (chord_string == 'NC'):
-            return 0, chord_notes, chord_class
+            print('warning: NC is currently not supported')
+            exit()
 
         re_results = CHORD_REGEX.search(chord_string)
         if re_results:
@@ -59,7 +62,7 @@ class Chord:
             seventh_interval = None
             if seventh_symbol:
                 if (not polarity):
-                    seventh_interval = Intervals(third_interval + Intervals.Tritone.value)
+                    seventh_interval = Intervals(third_interval.value + Intervals.Tritone.value)
                     chord_class = Chord_Types.Dominant
                 elif(polarity == 'sus'):
                     seventh_interval = Intervals.MinorSeventh
@@ -69,7 +72,7 @@ class Chord:
                 elif(seventh_symbol == 'j7'):
                     seventh_interval = Intervals.MajorSeventh
                 else:
-                    seventh_interval = Intervals(third_interval + Intervals.PerfectFifth.value)
+                    seventh_interval = Intervals(third_interval.value + Intervals.PerfectFifth.value)
             chord_notes['seventh'] = seventh_interval
 
             if sixth_symbol:
@@ -96,6 +99,8 @@ class Chord:
                     ninth_interval = Intervals.MinorThird
                 elif (ninth_symbol == '9'):
                     ninth_interval = Intervals.MajorSecond
+            else:
+                ninth_interval = Intervals.MajorSecond # implicit ninth
             chord_notes['ninth'] = ninth_interval
 
             eleventh_interval = None
@@ -103,7 +108,7 @@ class Chord:
                 if (eleventh_symbol == '11#'):
                     eleventh_interval = Intervals.Tritone
                 elif (eleventh_symbol == '11'):
-                    eleventh_interval == Intervals.PerfectFourth
+                    eleventh_interval = Intervals.PerfectFourth
             chord_notes['eleventh'] = eleventh_interval
 
             thirteenth_interval = None
@@ -111,33 +116,53 @@ class Chord:
                 if (thirteenth_symbol == '13b'):
                     thirteenth_interval = Intervals.MinorSixth
                 elif (thirteenth_symbol == '13'):
-                    thirteenth_interval == Intervals.MajorSixth
+                    thirteenth_interval = Intervals.MajorSixth
             chord_notes['thirteenth'] = thirteenth_interval
 
-            return root, chord_notes
+            return root, chord_notes, chord_class
 
     def set_voicing(self, voicing: Voicings):
         self.voicing = voicing
 
-    def midi_notes(self) -> List[int]:
-        midi_root = self.reference_pitch + self.root.value
+    def voiced_midi_notes(self) -> List[int]:
         notes = []
         for function, interval in self.notes.items():
-            if self.voicing.value[function] != None and interval != None:
-                notes.append(midi_root + interval.value + self.voicing.value[function] * 12)
+            if self.voicing.value.get(function, None) != None and interval != None:
+                notes.append(self.midi_root + interval.value + self.voicing.value.get(function, 0) * 12)
         return notes
+
+    def midi_notes(self) -> List[int]:
+        notes = []
+        for interval in self.notes.values():
+            if interval != None:
+                notes.append(self.midi_root + interval.value)
+        return notes
+
+    def safe_midi_notes(self) -> List[int]:
+        notes = []
+        if self.chord_class == Chord_Types.Major:
+            for function, interval in self.notes.items():
+                if interval != None and function != 'seventh':
+                    notes.append(self.midi_root + interval.value)
+        else: 
+            return self.midi_notes()
+
+    def get_notes(self) -> List[Notes]:
+        return [self.midi_root + note.value for note in self.notes.values()]
+
 
     def print_info(self):
         print('name: ', self.name)
+        print('root: ', self.root)
         print('notes: ', self.notes)
         print('type: ', self.chord_class)
-        print('midi: ', self.midi_notes())
+        print('midi: ', self.voiced_midi_notes())
 
     def preview_chord(self):
         raise NotImplementedError
 
 class Bar:
-    def __init__(self, beats: int, tempo: int, swing: bool = False, swing_percentage: float = 0.65):
+    def __init__(self, beats: int, tempo: int, swing: bool = False, swing_percentage: float = 0.60):
         self.beat_chords = [Chord('NC')] * beats
         self.swing_percentage = swing_percentage
         self.beats = beats
@@ -168,6 +193,7 @@ class Song:
     def __init__(self, songdf: pd.DataFrame):
         self.bars = [None] * (songdf.bar.max() + 1)
         self.tempo = songdf['tempo'].iloc[0]
+        self.beat_chords: List[Chord] = []
         song_bars = songdf.groupby('bar')
         for name, bar_group in song_bars:
             bar_beats = bar_group.beats.iloc[0]
@@ -178,25 +204,87 @@ class Song:
             chords = []
             for index, bar_row in bar_group.iterrows():
                 chord_string = bar_row.chord
-                print(chord_string)
+                print('this chord: ', chord_string)
                 chords.append(Chord(chord_string))
 
             new_bar.set_chords(chords, beats=range(bar_beats))
+            self.beat_chords.extend(new_bar.beat_chords)
             accent = random.choice(list(Accents)).value
-            # accent = Accents.Swing4_1.value
             new_bar.set_accents(accent, swing=bar_swing)
             self.bars[name] = new_bar
+        
+    def lead_voices(self, prev_chord: List[int], chord: List[int]) -> List[int]:
+        new_chord = []
+        voice_leads = []
+        for prev_note in prev_chord:
+            voice_leads.extend((prev_note, prev_note + 1, prev_note + 2, prev_note - 1, prev_note - 2))
+
+        for note in chord:
+            if note in voice_leads:
+                new_chord.append(note)
+            elif (note - 12) in voice_leads:
+                new_chord.append(note - 12)
+            elif (note + 12) in voice_leads:
+                new_chord.append(note + 12)
+            else:
+                new_chord.append(note)
+        return new_chord
+  
+    def walking_bass_line(self, chords: List[Chord], octave = -2):
+        bass_notes = [None] * (len(chords) + 1)
+        bass_notes[0] = chords[0].midi_root
+        bass_notes[-1] = chords[-1].midi_root
+        for idx, bass_note in reversed(list(enumerate(bass_notes[0:-1]))):
+            print(bass_notes)
+            if chords[idx].name != chords[idx - 1].name:
+                bass_notes[idx] = chords[idx].midi_root # start bass of new chord on the root for more harmonic support
+            else:
+                chord_tones = chords[idx].safe_midi_notes()
+                if bass_notes[idx + 1] in chord_tones: chord_tones.remove(bass_notes[idx + 1])
+                leading_tones = midi_leading_tones(bass_notes[idx + 1])
+                if bass_notes[idx + 1] in leading_tones: leading_tones.remove(bass_notes[idx + 1])
+
+                random.shuffle(chord_tones)
+                random.shuffle(leading_tones)
+                if not idx % 2:
+                    bass_notes[idx] = chord_tones[0]
+                else:
+                    for note in chord_tones:
+                        leads = [lead for lead in leading_tones if (lead % 11 == note % 11)]
+                        if len(leads):
+                            bass_notes[idx] = random.sample(leads, 1)[0]
+                            continue
+                    if bass_notes[idx] == None:
+                        print('no lead found')
+                        bass_notes[idx] = chord_tones[0]
+
+        print(bass_notes)
+        return [note + 12 * octave for note in bass_notes]
+
+
+        
 
     # Add instruments?
-    def export_to_midi(self, target: str, instruments: List[str], repeats: int = 1):
+    def export_to_midi(self, target: str, instruments: List[str], repeats: int = 1, voice_leading: bool = True):
         mw = MidiWriter(tempo=self.tempo, instruments=instruments)
-        current_bar = 0
-        for bar in (self.bars * repeats):
+        current_beat = 0
+        prev_chord = None
+        repeated_bars = self.bars * repeats
+        repeated_beat_chords = self.beat_chords * repeats
+
+        bass_line = [(note, position) for position, note in enumerate(self.walking_bass_line(repeated_beat_chords))]
+        print(bass_line)
+        mw.write_bass(bass_line, 0, Durations.Eight.value)
+
+        for bar in repeated_bars:
             for accent in bar.accents:
                 chord = bar.beat_chords[math.floor(accent)]
                 chord.print_info()
-                midi_chord = chord.midi_notes()
-                mw.write_chord(chord=midi_chord, beat=current_bar + accent, duration=Durations.Eight.value)
-            current_bar += bar.beats
+                midi_chord = chord.voiced_midi_notes()
+                if voice_leading and prev_chord:
+                    midi_chord = self.lead_voices(prev_chord, midi_chord)
+                mw.write_chord(chord=midi_chord, beat=current_beat + accent, duration=Durations.Eight.value)
+                prev_chord = midi_chord
+            current_beat += bar.beats
         
         mw.export_midi(target)

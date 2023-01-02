@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 import re
+from typing import List
 
 GLOBAL_TUNING = 21 # corresponds to midi A0
 
@@ -16,9 +17,9 @@ class Accents(Enum):
     Swing4_1 = [1,4]
     Swing4_2 = [0,3]
 
-class BassFigures(Enum):
-    Standard2 = ['root', 'fifth']
-    Standard4 = ['root', 'third', 'fifth', 'third']
+class Bass_Targets(Enum):
+    ToFifth = ['root', 'fifth']
+    ToThird = ['root', 'third']
 
 class Scales(Enum):
     GREGORIAN = [0,2,4,5,7,9,11]
@@ -116,3 +117,9 @@ class Numerals(Enum):
 
 def add_interval(note: Notes, interval: Intervals)-> Notes:
     return Notes((note.value + interval.value) % 11)
+
+def sub_interval(note: Notes, interval: Intervals)-> Notes:
+    return Notes((note.value - interval.value) % 11)
+
+def midi_leading_tones(midi_note: int) -> List[int]:
+    return [midi_note + 1, midi_note + 2, midi_note - 1, midi_note - 2]
