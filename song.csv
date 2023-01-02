@@ -1,6 +1,10 @@
 chord,bar,beats,division,feel,tempo,key
-A7,0,4,4,swing,120,F
-Am7,1
-Fm7,2
-Em11,3
-Dm7,4
+Dm79,0,4,4,swing,120,F
+Dm79,1,4,4,swing,120,F
+Dm79,2
+Dm79,3
+Ebm79,4,4,4,straight,120,F
+Ebm79,5
+Ebm79,6
+Ebm79,7
+Dm7,8

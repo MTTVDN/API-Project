@@ -1,12 +1,13 @@
 from typing import List
-from utils import CHORD_REGEX, add_interval, sub_interval, midi_leading_tones, Notes, MINOR_THIRD_SYMBOLS, MAJOR_THIRD_SYMBOLS, Intervals, Voicings, GLOBAL_TUNING, Accents, Durations, Chord_Types, Bass_Targets
+from utils import CHORD_REGEX, add_interval, sub_interval, midi_leading_tones, Notes, MINOR_THIRD_SYMBOLS, MAJOR_THIRD_SYMBOLS, Intervals, Voicings, GLOBAL_TUNING, Accents, Durations, Chord_Types
 from midiwriter import MidiWriter
 import pandas as pd
 import random
 import math
 
 class Chord:
-    def __init__(self, chord_string: str, voicing: Voicings = Voicings.Classic10, octave: int = 3):
+    def __init__(self, chord_string: str, voicing: Voicings = Voicings.Rootless, octave: int = 3):
+        print('init:', chord_string)
         self.name = chord_string
         self.root, self.notes, self.chord_class = self.parse_chord(chord_string)
         self.voicing = voicing
@@ -163,7 +164,7 @@ class Chord:
 
 class Bar:
     def __init__(self, beats: int, tempo: int, swing: bool = False, swing_percentage: float = 0.60):
-        self.beat_chords = [Chord('NC')] * beats
+        self.beat_chords = [None] * beats
         self.swing_percentage = swing_percentage
         self.beats = beats
         self.accents = []
@@ -192,10 +193,12 @@ class Bar:
 class Song:
     def __init__(self, songdf: pd.DataFrame):
         self.bars = [None] * (songdf.bar.max() + 1)
+        print(songdf)
         self.tempo = songdf['tempo'].iloc[0]
         self.beat_chords: List[Chord] = []
         song_bars = songdf.groupby('bar')
         for name, bar_group in song_bars:
+            print(bar_group)
             bar_beats = bar_group.beats.iloc[0]
             bar_tempo = bar_group.tempo.iloc[0]
             bar_swing = bar_group.feel.iloc[0] == 'swing'
@@ -203,6 +206,7 @@ class Song:
 
             chords = []
             for index, bar_row in bar_group.iterrows():
+                print('chord', bar_row.chord)
                 chord_string = bar_row.chord
                 print('this chord: ', chord_string)
                 chords.append(Chord(chord_string))
@@ -240,9 +244,9 @@ class Song:
                 bass_notes[idx] = chords[idx].midi_root # start bass of new chord on the root for more harmonic support
             else:
                 chord_tones = chords[idx].safe_midi_notes()
-                if bass_notes[idx + 1] in chord_tones: chord_tones.remove(bass_notes[idx + 1])
+                # if bass_notes[idx + 1] in chord_tones: chord_tones.remove(bass_notes[idx + 1])
                 leading_tones = midi_leading_tones(bass_notes[idx + 1])
-                if bass_notes[idx + 1] in leading_tones: leading_tones.remove(bass_notes[idx + 1])
+                # if bass_notes[idx + 1] in leading_tones: leading_tones.remove(bass_notes[idx + 1])
 
                 random.shuffle(chord_tones)
                 random.shuffle(leading_tones)
@@ -252,7 +256,7 @@ class Song:
                     for note in chord_tones:
                         leads = [lead for lead in leading_tones if (lead % 11 == note % 11)]
                         if len(leads):
-                            bass_notes[idx] = random.sample(leads, 1)[0]
+                            bass_notes[idx] = random.choice(leads)
                             continue
                     if bass_notes[idx] == None:
                         print('no lead found')

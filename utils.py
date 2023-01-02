@@ -6,7 +6,7 @@ from typing import List
 GLOBAL_TUNING = 21 # corresponds to midi A0
 
 class Voicings(Enum):
-    Rootless = {'root': None, 'third': 0, 'fifth': None, 'seventh': 0}
+    Rootless = {'root': None, 'third': 0, 'fifth': 0, 'seventh': 0}
     Standard = {'root': 0, 'third': 0, 'fifth': 0, 'seventh': 0}
     Classic10 = {'root': -1, 'third': 0, 'fifth': None, 'seventh': 0}
     Inversion1 = {'root': 1, 'third': 0, 'fifth': 0, 'seventh': 0}
@@ -17,10 +17,6 @@ class Accents(Enum):
     Swing4_1 = [1,4]
     Swing4_2 = [0,3]
 
-class Bass_Targets(Enum):
-    ToFifth = ['root', 'fifth']
-    ToThird = ['root', 'third']
-
 class Scales(Enum):
     GREGORIAN = [0,2,4,5,7,9,11]
     HARMONIC = [0,2,3,5,7,8,11]
@@ -28,12 +24,10 @@ class Scales(Enum):
     DIMINISHED = [0,2,3,5,6,8,9,11]
     WHOLE = [0,2,4,6,8,10]
 
-twofiveoneintervals = [7, 7]
-
 MINOR_THIRD_SYMBOLS = '-om'
 MAJOR_THIRD_SYMBOLS = '+j'
 
-# TODO add altered chords
+# TODO add altered chords?
 
 chroma = '([A-G])'
 accidental = '(b|#)?'
