@@ -1,5 +1,5 @@
-chord,bar,beats,division,feel,tempo,key
-Gm7,0,4,4,swing,120,F
+chord,bar,beats,division,feel,tempo,key,swing_percentage
+Gm7,0,4,4,swing,120,F,0.60
 C7,1
 Fj7,2
 Fj7,3

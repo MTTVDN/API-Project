@@ -208,7 +208,8 @@ class Song:
             bar_beats = bar_group.beats.iloc[0]
             bar_tempo = bar_group.tempo.iloc[0]
             bar_swing = bar_group.feel.iloc[0] == 'swing'
-            new_bar = Bar(beats=bar_beats, tempo=bar_tempo, swing=bar_swing)
+            bar_swing_percentage = bar_group.swing_percentage.iloc[0]
+            new_bar = Bar(beats=bar_beats, tempo=bar_tempo, swing=bar_swing, swing_percentage=bar_swing_percentage)
 
             chords = []
             for index, bar_row in bar_group.iterrows():
@@ -252,7 +253,7 @@ class Song:
                 leading_tones = midi_leading_tones(bass_notes[idx + 1])
                 random.shuffle(chord_tones)
                 random.shuffle(leading_tones)
-                if not idx % 2:
+                if not idx % 2: # strong beats
                     bass_notes[idx] = chord_tones[0]
                 else:
                     for note in chord_tones:
